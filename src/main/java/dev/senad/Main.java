@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import secureEntry.SecureEntry;
 import utility.EncryptionUtil;
 import utility.InputValidator;
+import utility.PasswordUtil;
 import vault.Vault;
 
 import java.io.IOException;
@@ -80,7 +81,12 @@ public class Main {
 
         String website = InputValidator.secureInput(input, "Website: ");
         String username = InputValidator.secureInput(input, "Username: ");
-        String password = InputValidator.secureInput(input, "Password: ");
+        String password = InputValidator.secureInput(input, "Password (enter 'generate' to autogenerate): ");
+
+        if (password.trim().equalsIgnoreCase("generate")) {
+            password = PasswordUtil.generateRandomPassword(16, true, true, true, true); // Generate a password (you can adjust length)
+            System.out.println("Generated Password: " + password);
+        }
 
         String salt = EncryptionUtil.generateSalt();
         byte[] decodedSalt = Base64.getDecoder().decode(salt);
