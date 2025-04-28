@@ -12,6 +12,10 @@ public class PasswordUtil {
     private static final String NUMBER_CHARS = "0123456789";
     private static final String SPECIAL_CHARS = "!@#$%&*()_+-=[]{}|;':\",./<>?";
 
+    public enum Strength {
+        VERY_WEAK, WEAK, MODERATE, STRONG, VERY_STRONG
+    }
+
     public static char[] grabMasterPassword(boolean confirmation) {
         Console console = System.console();
         if (console == null) {
@@ -47,5 +51,40 @@ public class PasswordUtil {
             password.append(charCategory.charAt(random.nextInt(charCategory.length())));
         }
         return password.toString();
+    }
+
+    public static Strength checkStrength(String password) {
+        if (password == null || password.length() < 6) {
+            return Strength.VERY_WEAK;
+        }
+
+        int strengthLevel = 0;
+        boolean hasLower = false;
+        boolean hasUpper = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isLowerCase(c)) {
+                hasLower = true;
+                strengthLevel++;
+            } else if (Character.isUpperCase(c)) {
+                hasUpper = true;
+                strengthLevel++;
+            } else if (Character.isDigit(c)) {
+                hasDigit = true;
+                strengthLevel++;
+            } else if (!Character.isLetterOrDigit(c) && !Character.isWhitespace(c)) {
+                hasSpecial = true;
+                strengthLevel++;
+            }
+        }
+
+        if (password.length() < 8 && strengthLevel > 1) return Strength.WEAK;
+        if (password.length() >= 8 && password.length() < 10 && strengthLevel >= 2) return Strength.MODERATE;
+        if (password.length() >= 10 && password.length() < 12 && strengthLevel >= 3) return Strength.STRONG;
+        if (password.length() >= 12 && strengthLevel == 4) return Strength.VERY_STRONG;
+
+        return Strength.WEAK; // Default
     }
 }
