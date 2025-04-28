@@ -3,6 +3,7 @@ package dev.senad;
 import com.google.gson.Gson;
 import secureEntry.SecureEntry;
 import utility.EncryptionUtil;
+import vault.Vault;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,8 +12,14 @@ import java.nio.file.Paths;
 import java.util.*;
 
 public class Main {
+    private static final List<SecureEntry> secureEntries = new ArrayList<>();
+
     public static void main(String[] args) {
         initializeVault();
+        runningLoop();
+    }
+
+    public static void runningLoop() {
         boolean running = true;
         Scanner input = new Scanner(System.in);
         while (running) {
@@ -29,7 +36,7 @@ public class Main {
                     listSecureEntries();
                     break;
                 case "test-decrypt":
-                    decrypt();
+                    readSecureEntry();
                     break;
                 default:
                     System.out.println("Unknown command.");
@@ -38,21 +45,9 @@ public class Main {
         }
     }
 
-    private static List<SecureEntry> secureEntries = new ArrayList<>();
-
     public static void createSecureEntry() {
+        char[] masterPassword = grabMasterPassword(true);
         Scanner input = new Scanner(System.in);
-
-        System.out.print("Master password: ");
-        char[] masterPassword = input.nextLine().toCharArray();
-
-        System.out.print("Master password: ");
-        char[] confirmationMasterPassword = input.nextLine().toCharArray();
-
-        if (!Arrays.equals(masterPassword, confirmationMasterPassword)) {
-            System.out.println("Master passwords do not match.");
-            return;
-        }
 
         System.out.print("Website: ");
         String website = input.nextLine();
@@ -66,24 +61,63 @@ public class Main {
         String salt = EncryptionUtil.generateSalt();
         byte[] decodedSalt = Base64.getDecoder().decode(salt);
         byte[] key = EncryptionUtil.generateKey(masterPassword, decodedSalt);
-        String encryptedPassword = EncryptionUtil.encryptPassword(password, key);
+        String encryptedPassword = EncryptionUtil.encrypt(password, key);
 
         SecureEntry secureEntry = new SecureEntry(website, username, encryptedPassword, salt);
         secureEntries.add(secureEntry);
-        try {
-            String fileName = "vault.txt";
-            Path path = Paths.get(fileName);
-            if (!Files.exists(path)) {
-                System.out.println("Error: File does not exist.");
-                return;
-            }
-            Gson gson = new Gson();
-            String json = gson.toJson(secureEntries);
-            Files.write(path, json.getBytes());
-            System.out.println("Secure entry saved to vault.");
-        } catch (IOException e) {
-            System.err.println("An error occurred while creating the secure entry: " + e.getMessage());
+        String fileName = "vault.txt";
+        Path path = Paths.get(fileName);
+        if (!Files.exists(path)) {
+            System.out.println("Error: File does not exist.");
+            return;
         }
+        Gson gson = new Gson();
+        String json = gson.toJson(secureEntries);
+        encryptVault(json);
+        System.out.println("Secure entry saved to vault.");
+    }
+
+    public static void encryptVault(String jsonEntries) {
+        char[] masterPassword = grabMasterPassword(true);
+        String salt = EncryptionUtil.generateSalt();
+        byte[] decodedSalt = Base64.getDecoder().decode(salt);
+        byte[] key = EncryptionUtil.generateKey(masterPassword, decodedSalt);
+        String encryptedJsonEntries = EncryptionUtil.encrypt(jsonEntries, key);
+        Vault vault = new Vault(salt, encryptedJsonEntries);
+        Gson gson = new Gson();
+        String json = gson.toJson(vault);
+        String fileName = "vault.txt";
+        Path path = Paths.get(fileName);
+        try {
+            Files.write(path, json.getBytes());
+        } catch (IOException e) {
+            System.out.println("Error writing vault to file: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void decryptVault(Vault vault) {
+        char[] masterPassword = grabMasterPassword(false);
+        String payload = EncryptionUtil.decrypt(masterPassword, vault.salt, vault.encryptedPayload);
+        Gson gson = new Gson();
+        SecureEntry[] entries = gson.fromJson(payload, SecureEntry[].class);
+        secureEntries.addAll(Arrays.asList(entries));
+    }
+
+    public static char[] grabMasterPassword(boolean confirmation) {
+        Scanner input = new Scanner(System.in);
+        System.out.print("Master password: ");
+        char[] masterPassword = input.nextLine().toCharArray();
+        if (confirmation) {
+            System.out.print("Master password: ");
+            char[] confirmationMasterPassword = input.nextLine().toCharArray();
+
+            if (!Arrays.equals(masterPassword, confirmationMasterPassword)) {
+                System.out.println("Master passwords do not match.");
+                return null;
+            }
+        }
+        return masterPassword;
     }
 
     public static void listSecureEntries() {
@@ -95,11 +129,10 @@ public class Main {
         }
     }
 
-    public static void decrypt() {
+    public static void readSecureEntry() {
         Scanner input = new Scanner(System.in);
 
-        System.out.print("Master password: ");
-        char[] masterPassword = input.nextLine().toCharArray();
+        char[] masterPassword = grabMasterPassword(false);
 
         System.out.print("Enter the website name of the entry to decrypt: ");
         String websiteName = input.nextLine();
@@ -111,7 +144,7 @@ public class Main {
             System.out.println("Invalid website name.");
             return;
         }
-        String decryptedPassword = EncryptionUtil.decryptPasword(masterPassword, entry.get());
+        String decryptedPassword = EncryptionUtil.decrypt(masterPassword, entry.get().salt, entry.get().encryptedPassword);
         System.out.println("Decrypted Password: " + decryptedPassword);
     }
 
@@ -125,9 +158,9 @@ public class Main {
             } else {
                 String content = Files.readString(path);
                 Gson gson = new Gson();
-                SecureEntry[] entriesArray = gson.fromJson(content, SecureEntry[].class);
-                if (entriesArray != null) {
-                    secureEntries.addAll(Arrays.asList(entriesArray));
+                Vault vault = gson.fromJson(content, Vault.class);
+                if (vault != null) {
+                    decryptVault(vault);
                     System.out.println("Vault data loaded successfully.");
                 } else {
                     System.out.println("Vault file is empty or contains invalid data.");

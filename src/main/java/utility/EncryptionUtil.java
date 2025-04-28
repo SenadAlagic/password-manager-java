@@ -38,7 +38,7 @@ public class EncryptionUtil {
         }
     }
 
-    public static String encryptPassword(String data, byte[] key) {
+    public static String encrypt(String data, byte[] key) {
         try {
             Cipher cipher = Cipher.getInstance(AES_ALGORITHM);
             SecretKey secretKey = new SecretKeySpec(key, "AES");
@@ -59,11 +59,11 @@ public class EncryptionUtil {
         }
     }
 
-    public static String decryptPasword(char[] masterPassword, SecureEntry secureEntry) {
+    public static String decrypt(char[] masterPassword, String saltString, String data) {
         try {
-            byte[] salt = Base64.getDecoder().decode(secureEntry.salt);
+            byte[] salt = Base64.getDecoder().decode(saltString);
             byte[] key = generateKey(masterPassword, salt);
-            byte[] encryptedPasswordWithIv = Base64.getDecoder().decode(secureEntry.encryptedPassword);
+            byte[] encryptedPasswordWithIv = Base64.getDecoder().decode(data);
             byte[] iv = Arrays.copyOfRange(encryptedPasswordWithIv, 0, 16);
             byte[] ciphertext = Arrays.copyOfRange(encryptedPasswordWithIv, 16, encryptedPasswordWithIv.length);
 
