@@ -20,39 +20,38 @@ jobs:
       - name: Analyze Latest Commit and Update Version
         id: version_update
         run: |
-            # Debug existing pom.xml
-            echo "Checking pom.xml file structure:"
-            cat pom.xml || { echo "pom.xml not found!"; exit 1; }
-
-            # Get current version from pom.xml
-            current_version=$(xmlstarlet sel -t -v "/project/version" pom.xml) || { echo "Failed to fetch version"; exit 1; }
-            echo "Current version: $current_version"
-
-            # Analyze the latest commit
-            latest_commit=$(git log -1 --pretty=format:"%s")
-            echo "Analyzing latest commit: $latest_commit"
-
-            # Determine version increment type
-            increment="patch"
-            if echo "$latest_commit" | grep -E "^feat!|^BREAKING CHANGE:|^feat\(major\):"; then
-              increment="major"
-              elif echo "$latest_commit" | grep -E "^feat:"; then
-              increment="minor"
-            fi
-
-            # Increment version
-            IFS='.' read -r major minor patch <<< "$current_version"
-            case "$increment" in
-              "major") major=$((major + 1)); minor=0; patch=0 ;;
-              "minor") minor=$((minor + 1)); patch=0 ;;
-              "patch") patch=$((patch + 1)) ;;
-            esac
-            new_version="$major.$minor.$patch"
-            echo "New version: $new_version"
-            echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
-        
-            # Update pom.xml
-            xmlstarlet ed -L -u "/project/version" -v "$new_version" pom.xml || { echo "Failed to update pom.xml"; exit 1; }
+          # Define Maven namespace
+          NS="http://maven.apache.org/POM/4.0.0"
+          
+          # Get current version from pom.xml with namespace
+          current_version=$(xmlstarlet sel -N pom="$NS" -t -v "/pom:project/pom:version" pom.xml)
+          echo "Current version: $current_version"
+          
+          # Analyze the latest commit
+          latest_commit=$(git log -1 --pretty=format:"%s")
+          echo "Analyzing latest commit: $latest_commit"
+          
+          # Determine version increment type
+          increment="patch"
+          if echo "$latest_commit" | grep -E "^feat!|^BREAKING CHANGE:|^feat\(major\):"; then
+            increment="major"
+          elif echo "$latest_commit" | grep -E "^feat:"; then
+            increment="minor"
+          fi
+          
+          # Increment version
+          IFS='.' read -r major minor patch <<< "$current_version"
+          case "$increment" in
+            "major") major=$((major + 1)); minor=0; patch=0 ;;
+            "minor") minor=$((minor + 1)); patch=0 ;;
+            "patch") patch=$((patch + 1)) ;;
+          esac
+          new_version="$major.$minor.$patch"
+          echo "New version: $new_version"
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+      
+          # Update pom.xml with namespace
+          xmlstarlet ed -L -N pom="$NS" -u "/pom:project/pom:version" -v "$new_version" pom.xml || { echo "Failed to update pom.xml"; exit 1; }
       
       - name: Commit and Tag
         run: |
