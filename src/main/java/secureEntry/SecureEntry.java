@@ -16,8 +16,6 @@ public class SecureEntry {
     @Override
     public String toString() {
         return "Website: " + website + "\n" +
-                "Username: " + username + "\n" +
-                "Password: " + encryptedPassword + "\n" +
-                "Salt: " + salt + "\n";
+                "Username: " + username + "\n";
     }
 }
