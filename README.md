@@ -29,7 +29,7 @@ This is a secure password manager application built in Java. It currently featur
 
 1.  **Clone the repository:**
     ```bash
-    git clone (https://github.com/SenadAlagic/password-manager-java.git)
+    git clone https://github.com/SenadAlagic/password-manager-java.git
     ```
 2.  **Compile the Java code:**
     ```bash
