@@ -1,0 +1,82 @@
+name: Auto Increment SemVer
+on:
+  push:
+    branches: [main]
+jobs:
+  increment_version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Install xmlstarlet
+        run: sudo apt-get install -y xmlstarlet
+      
+      - name: Analyze Latest Commit and Update Version
+        id: version_update
+        run: |
+          # Get current version from pom.xml
+          current_version=$(xmlstarlet sel -t -v "/project/version" pom.xml)
+          echo "Current version: $current_version"
+          
+          # Analyze only the latest commit
+          latest_commit=$(git log -1 --pretty=format:"%s")
+          echo "Analyzing latest commit: $latest_commit"
+          
+          # Determine version increment type based on latest commit
+          increment="patch"
+          if echo "$latest_commit" | grep -E "^feat!|^BREAKING CHANGE:|^feat\(major\):"; then
+            increment="major"
+            echo "Found major change or breaking change, incrementing major version"
+          elif echo "$latest_commit" | grep -E "^feat:"; then
+            increment="minor"
+            echo "Found feature commit, incrementing minor version"
+          else
+            echo "No major or minor changes found, incrementing patch version"
+          fi
+          
+          # Parse and increment version
+          IFS='.' read -r major minor patch <<< "$current_version"
+          case "$increment" in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          new_version="$major.$minor.$patch"
+          echo "New version: $new_version"
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+          
+          # Update pom.xml
+          xmlstarlet ed -L -u "/project/version" -v "$new_version" pom.xml
+      
+      - name: Commit and Tag
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add pom.xml
+          git commit -m "chore(release): v${{ steps.version_update.outputs.new_version }}"
+          git tag "v${{ steps.version_update.outputs.new_version }}"
+          git push origin "refs/tags/v${{ steps.version_update.outputs.new_version }}"
+          git push origin main
