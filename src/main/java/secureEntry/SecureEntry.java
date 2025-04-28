@@ -1,10 +1,10 @@
 package secureEntry;
 
 public class SecureEntry {
-    private final String website;
-    private final String username;
-    private final String encryptedPassword;
-    private final String salt;
+    public final String website;
+    public final String username;
+    public final String encryptedPassword;
+    public final String salt;
 
     public SecureEntry(String website, String username, String password, String salt) {
         this.website = website;

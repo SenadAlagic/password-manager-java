@@ -8,10 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
@@ -31,6 +28,9 @@ public class Main {
                 case "list":
                     listSecureEntries();
                     break;
+                case "test-decrypt":
+                    decrypt();
+                    break;
                 default:
                     System.out.println("Unknown command.");
                     break;
@@ -43,6 +43,17 @@ public class Main {
     public static void createSecureEntry() {
         Scanner input = new Scanner(System.in);
 
+        System.out.print("Master password: ");
+        char[] masterPassword = input.nextLine().toCharArray();
+
+        System.out.print("Master password: ");
+        char[] confirmationMasterPassword = input.nextLine().toCharArray();
+
+        if (!Arrays.equals(masterPassword, confirmationMasterPassword)) {
+            System.out.println("Master passwords do not match.");
+            return;
+        }
+
         System.out.print("Website: ");
         String website = input.nextLine();
 
@@ -53,7 +64,8 @@ public class Main {
         String password = input.nextLine();
 
         String salt = EncryptionUtil.generateSalt();
-        byte[] key = EncryptionUtil.generateKey(salt.getBytes());
+        byte[] decodedSalt = Base64.getDecoder().decode(salt);
+        byte[] key = EncryptionUtil.generateKey(masterPassword, decodedSalt);
         String encryptedPassword = EncryptionUtil.encryptPassword(password, key);
 
         SecureEntry secureEntry = new SecureEntry(website, username, encryptedPassword, salt);
@@ -81,6 +93,26 @@ public class Main {
             for (SecureEntry entry : secureEntries)
                 System.out.println(entry.toString());
         }
+    }
+
+    public static void decrypt() {
+        Scanner input = new Scanner(System.in);
+
+        System.out.print("Master password: ");
+        char[] masterPassword = input.nextLine().toCharArray();
+
+        System.out.print("Enter the website name of the entry to decrypt: ");
+        String websiteName = input.nextLine();
+        for (SecureEntry entry : secureEntries) {
+            System.out.println(entry.toString());
+        }
+        Optional<SecureEntry> entry = secureEntries.stream().filter(located -> located.website.equals(websiteName)).findFirst();
+        if (entry.isEmpty()) {
+            System.out.println("Invalid website name.");
+            return;
+        }
+        String decryptedPassword = EncryptionUtil.decryptPasword(masterPassword, entry.get());
+        System.out.println("Decrypted Password: " + decryptedPassword);
     }
 
     public static void initializeVault() {
