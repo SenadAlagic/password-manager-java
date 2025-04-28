@@ -86,7 +86,3 @@ This password manager is provided as is, without any warranty. While security me
 ## Author
 
 Alagić Senad & Huseinbašić Hamza
-
-## Acknowledgements
-
-* [Mention any libraries or resources you found particularly helpful]
